@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMS Bridge</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a3a;
+    --accent: #4f8eff;
+    --accent2: #7c3aed;
+    --green: #22c55e;
+    --red: #ef4444;
+    --text: #e8e8f0;
+    --muted: #6b6b80;
+    --sent-bg: #1e3a5f;
+    --recv-bg: #1a1a28;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* === CONNECT SCREEN === */
+  #connect-screen {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0;
+    background: 
+      radial-gradient(ellipse 60% 40% at 30% 20%, rgba(79,142,255,0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 50% at 70% 80%, rgba(124,58,237,0.07) 0%, transparent 70%),
+      var(--bg);
+  }
+  .connect-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 420px;
+    max-width: 95vw;
+    position: relative;
+    overflow: hidden;
+  }
+  .connect-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .connect-logo {
+    font-size: 40px;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .connect-title {
+    font-size: 28px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .connect-subtitle {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 32px;
+    font-family: var(--font-mono);
+  }
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+  }
+  .field-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 16px;
+  }
+  .field-input:focus { border-color: var(--accent); }
+  .connect-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    color: white;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: 4px;
+  }
+  .connect-btn:hover { opacity: 0.9; }
+  .connect-btn:active { transform: scale(0.98); }
+  .qr-btn {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid #7C3AED;
+    color: #A78BFA;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    margin-top: 8px;
+    transition: all 0.2s;
+  }
+  .qr-btn:hover { background: #7C3AED; color: #fff; }
+  .qr-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .qr-modal.show { display: flex; }
+  .qr-box {
+    background: #fff;
+    padding: 24px;
+    border-radius: 16px;
+    text-align: center;
+    max-width: 300px;
+    width: 90%;
+  }
+  .qr-box h3 { color: #0f172a; margin: 0 0 8px; font-size: 16px; }
+  .qr-box p { color: #64748b; font-size: 12px; margin: 0 0 16px; }
+  .qr-close {
+    margin-top: 16px;
+    padding: 8px 24px;
+    background: #0f172a;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  #connect-error {
+    margin-top: 12px;
+    color: var(--red);
+    font-size: 13px;
+    font-family: var(--font-mono);
+    text-align: center;
+    display: none;
+  }
+
+  /* === MAIN APP === */
+  #app { display: none; flex: 1; flex-direction: column; height: 100dvh; }
+  #app.visible { display: flex; }
+
+  /* Top bar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    gap: 16px;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+  .topbar-logo { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .topbar-logo span { color: var(--accent); }
+  .topbar-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--red);
+    transition: background 0.3s;
+  }
+  .status-dot.online { background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .topbar-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .icon-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text);
+    transition: background 0.15s;
+    font-family: var(--font-display);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .icon-btn:hover { background: var(--border); }
+  .icon-btn small { font-size: 11px; color: var(--muted); }
+
+  /* Main layout */
+  .main-layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 320px;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .search-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 13px;
+    outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .convo-list {
+    flex: 1;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .convo-item {
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(42,42,58,0.5);
+    transition: background 0.15s;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .convo-item:hover { background: var(--surface2); }
+  .convo-item.active { background: rgba(79,142,255,0.1); border-left: 3px solid var(--accent); padding-left: 13px; }
+  .avatar {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+  }
+  .convo-content { flex: 1; min-width: 0; }
+  .convo-name {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+  .convo-preview {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-mono);
+  }
+  .convo-meta {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;
+  }
+  .convo-time { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+  .unread-badge {
+    background: var(--accent);
+    color: white;
+    border-radius: 10px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .new-convo-btn {
+    margin: 12px 16px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 13px;
+    transition: all 0.15s;
+    width: calc(100% - 32px);
+  }
+  .new-convo-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Chat area */
+  .chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    overflow: hidden;
+    position: relative;
+  }
+  .chat-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--muted);
+  }
+  .chat-empty-icon { font-size: 48px; opacity: 0.3; }
+  .chat-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .chat-header-name { font-weight: 700; font-size: 16px; }
+  .chat-header-addr { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+  .messages-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .date-divider {
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    margin: 12px 0 4px;
+    position: relative;
+  }
+  .date-divider::before, .date-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 30%;
+    height: 1px;
+    background: var(--border);
+  }
+  .date-divider::before { left: 0; }
+  .date-divider::after { right: 0; }
+  .message {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    position: relative;
+    animation: msgIn 0.2s ease;
+  }
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .message.received {
+    background: var(--recv-bg);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+    align-self: flex-start;
+  }
+  .message.sent {
+    background: var(--sent-bg);
+    border: 1px solid rgba(79,142,255,0.3);
+    border-bottom-right-radius: 4px;
+    align-self: flex-end;
+    color: #c8dcff;
+  }
+  .message.pending { opacity: 0.6; }
+  .message-time {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: var(--font-mono);
+  }
+  .message.sent .message-time { text-align: right; }
+
+  /* Compose bar */
+  .compose-bar {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-shrink: 0;
+  }
+  .compose-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 14px;
+    outline: none;
+    resize: none;
+    max-height: 120px;
+    transition: border-color 0.2s;
+    line-height: 1.5;
+  }
+  .compose-input:focus { border-color: var(--accent); }
+  .send-btn {
+    background: var(--accent);
+    border: none;
+    border-radius: 12px;
+    width: 44px; height: 44px;
+    cursor: pointer;
+    font-size: 18px;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .send-btn:hover { background: #6fa3ff; }
+  .send-btn:active { transform: scale(0.93); }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* New conversation modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    width: 360px;
+  }
+  .modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-btn {
+    flex: 1; padding: 11px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14px;
+    background: var(--surface2);
+    color: var(--text);
+    transition: background 0.15s;
+  }
+  .modal-btn.primary { background: var(--accent); border-color: transparent; color: white; }
+  .modal-btn:hover { opacity: 0.85; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 13px;
+    font-family: var(--font-mono);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+    z-index: 200;
+    max-width: 280px;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error { border-color: var(--red); color: var(--red); }
+
+  /* Mobile tweaks */
+  @media (max-width: 640px) {
+    .sidebar { width: 100%; display: none; }
+    .sidebar.mobile-visible { display: flex; position: fixed; inset: 56px 0 0 0; z-index: 50; }
+    .chat-area { display: none; }
+    .chat-area.mobile-visible { display: flex; }
+    .topbar-logo { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- CONNECT SCREEN -->
+<div id="connect-screen">
+  <div class="connect-card">
+    <div class="connect-logo">💬</div>
+    <div class="connect-title">SMS Bridge</div>
+    <div class="connect-subtitle">Connect to your Android device</div>
+
+    <div class="field-label">Server Address</div>
+    <input class="field-input" id="serverUrl" type="text" placeholder="ws://192.168.1.x:3000" value="ws://localhost:3000">
+
+    <div class="field-label">Device Token</div>
+    <input class="field-input" id="tokenInput" type="text" placeholder="e.g. ABC12345">
+
+    <button class="connect-btn" onclick="connect()">Connect →</button>
+    <button class="qr-btn" onclick="showQr()">📷 Show QR Code for Android</button>
+    <div id="connect-error"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">SMS<span>Bridge</span></div>
+    <div class="topbar-status">
+      <div class="status-dot" id="androidDot"></div>
+      <span id="statusLabel">Android offline</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" onclick="requestSync()" title="Sync">🔄 <small>Sync</small></button>
+      <button class="icon-btn" onclick="disconnect()" title="Disconnect">✕ <small>Disconnect</small></button>
+    </div>
+  </div>
+
+  <div class="main-layout">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <input class="search-input" id="searchInput" placeholder="🔍 Search conversations..." oninput="filterConversations()">
+      </div>
+      <div class="convo-list" id="convoList"></div>
+      <button class="new-convo-btn" onclick="openNewConvo()">✏️ New Conversation</button>
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-area" id="chatArea">
+      <div class="chat-empty" id="chatEmpty">
+        <div class="chat-empty-icon">💬</div>
+        <div style="font-weight: 600; font-size: 16px;">Select a conversation</div>
+        <div style="font-size: 13px; font-family: var(--font-mono);">or start a new one</div>
+      </div>
+      <div id="chatView" style="display:none; flex-direction:column; flex:1; overflow:hidden; display:none;">
+        <div class="chat-header" id="chatHeader">
+          <div class="avatar" id="chatAvatar"></div>
+          <div>
+            <div class="chat-header-name" id="chatName"></div>
+            <div class="chat-header-addr" id="chatAddr"></div>
+          </div>
+        </div>
+        <div class="messages-container" id="messagesContainer"></div>
+        <div class="compose-bar">
+          <textarea class="compose-input" id="composeInput" placeholder="Type a message..." rows="1"
+            onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Conversation Modal -->
+<div class="modal-overlay" id="newConvoModal">
+  <div class="modal">
+    <h3>✏️ New Message</h3>
+    <div class="field-label">Phone Number</div>
+    <input class="field-input" id="newConvoPhone" type="tel" placeholder="+1 555 000 0000">
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeNewConvo()">Cancel</button>
+      <button class="modal-btn primary" onclick="startNewConvo()">Open Chat →</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let ws = null;
+let conversations = [];
+let activeConvoAddress = null;
+let androidOnline = false;
+let deviceToken = '';
+
+// ---- CONNECTION ----
+function connect() {
+  const url = document.getElementById('serverUrl').value.trim();
+  const token = document.getElementById('tokenInput').value.trim();
+  if (!url || !token) { showConnectError('Please fill in all fields'); return; }
+
+  deviceToken = token;
+  const fullUrl = url + '?type=browser&token=' + encodeURIComponent(token);
+
+  try {
+    ws = new WebSocket(fullUrl);
+  } catch (e) {
+    showConnectError('Invalid server URL');
+    return;
+  }
+
+  ws.onopen = () => {
+    document.getElementById('connect-screen').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+  };
+
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      handleMessage(msg);
+    } catch {}
+  };
+
+  ws.onclose = () => {
+    setAndroidStatus(false);
+    showToast('Disconnected from server', 'error');
+    setTimeout(() => {
+      document.getElementById('app').classList.remove('visible');
+      document.getElementById('connect-screen').style.display = 'flex';
+    }, 2000);
+  };
+
+  ws.onerror = () => showConnectError('Could not connect to server. Is it running?');
+}
+
+function disconnect() {
+  if (ws) ws.close();
+}
+
+function showConnectError(msg) {
+  const el = document.getElementById('connect-error');
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+}
+
+// ---- MESSAGE HANDLING ----
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'initial_state':
+    case 'sync_data':
+      conversations = msg.conversations || [];
+      renderConvoList();
+      setAndroidStatus(msg.androidOnline ?? androidOnline);
+      if (msg.type === 'initial_state') showToast('Connected — ' + conversations.length + ' conversations loaded', 'success');
+      break;
+    case 'android_status':
+      setAndroidStatus(msg.online);
+      showToast('Android ' + (msg.online ? 'connected ✓' : 'disconnected'), msg.online ? 'success' : 'error');
+      break;
+    case 'new_message':
+      addIncomingMessage(msg);
+      showToast('📩 ' + (msg.contactName || msg.from) + ': ' + msg.body.substring(0, 40));
+      break;
+    case 'sms_sent':
+      confirmSent(msg.messageId);
+      break;
+    case 'sms_queued':
+      break;
+    case 'error':
+      showToast('⚠️ ' + msg.message, 'error');
+      break;
+  }
+}
+
+function setAndroidStatus(online) {
+  androidOnline = online;
+  document.getElementById('androidDot').className = 'status-dot' + (online ? ' online' : '');
+  document.getElementById('statusLabel').textContent = online ? 'Android connected' : 'Android offline';
+}
+
+// ---- CONVERSATIONS ----
+function renderConvoList(filter = '') {
+  const list = document.getElementById('convoList');
+  list.innerHTML = '';
+  const query = filter.toLowerCase();
+  conversations.forEach(c => {
+    const name = c.contactName || c.address;
+    const preview = c.messages?.[0]?.body || '';
+    if (query && !name.toLowerCase().includes(query) && !c.address.includes(query)) return;
+    const item = document.createElement('div');
+    item.className = 'convo-item' + (c.address === activeConvoAddress ? ' active' : '');
+    item.innerHTML = `
+      <div class="avatar">${getInitial(name)}</div>
+      <div class="convo-content">
+        <div class="convo-name">${esc(name)}</div>
+        <div class="convo-preview">${esc(preview)}</div>
+      </div>
+      <div class="convo-meta">
+        <div class="convo-time">${formatTime(c.messages?.[0]?.date)}</div>
+        ${c.unreadCount > 0 ? `<div class="unread-badge">${c.unreadCount}</div>` : ''}
+      </div>
+    `;
+    item.onclick = () => openConversation(c.address);
+    list.appendChild(item);
+  });
+}
+
+function filterConversations() {
+  renderConvoList(document.getElementById('searchInput').value);
+}
+
+function openConversation(address) {
+  activeConvoAddress = address;
+  const c = conversations.find(x => x.address === address);
+  if (!c) return;
+  if (c.unreadCount > 0) { c.unreadCount = 0; renderConvoList(); }
+  renderConvoList(document.getElementById('searchInput').value);
+
+  document.getElementById('chatEmpty').style.display = 'none';
+  const cv = document.getElementById('chatView');
+  cv.style.display = 'flex';
+
+  document.getElementById('chatAvatar').textContent = getInitial(c.contactName || c.address);
+  document.getElementById('chatName').textContent = c.contactName || c.address;
+  document.getElementById('chatAddr').textContent = c.address;
+
+  renderMessages(c);
+  document.getElementById('composeInput').focus();
+}
+
+function renderMessages(convo) {
+  const container = document.getElementById('messagesContainer');
+  container.innerHTML = '';
+  const msgs = [...(convo.messages || [])].reverse();
+  let lastDate = null;
+  msgs.forEach(m => {
+    const d = formatDate(m.date);
+    if (d !== lastDate) {
+      const div = document.createElement('div');
+      div.className = 'date-divider';
+      div.textContent = d;
+      container.appendChild(div);
+      lastDate = d;
+    }
+    const el = document.createElement('div');
+    el.className = `message ${m.type === 'sent' ? 'sent' : 'received'}${m.pending ? ' pending' : ''}`;
+    el.dataset.id = m.id || '';
+    el.innerHTML = `${esc(m.body)}<div class="message-time">${formatTime(m.date)}${m.type === 'sent' ? (m.pending ? ' · sending…' : ' · sent') : ''}</div>`;
+    container.appendChild(el);
+  });
+  container.scrollTop = container.scrollHeight;
+}
+
+function addIncomingMessage(msg) {
+  let c = conversations.find(x => x.address === msg.from);
+  const newMsg = { id: Date.now().toString(), body: msg.body, date: msg.date, type: 'received', read: false };
+  if (c) {
+    c.messages.unshift(newMsg);
+    c.unreadCount = (c.unreadCount || 0) + 1;
+    conversations.sort((a, b) => (b.messages[0]?.date || 0) - (a.messages[0]?.date || 0));
+  } else {
+    c = { threadId: Date.now().toString(), address: msg.from, contactName: msg.contactName || msg.from, messages: [newMsg], unreadCount: 1 };
+    conversations.unshift(c);
+  }
+  renderConvoList(document.getElementById('searchInput').value);
+  if (activeConvoAddress === msg.from) {
+    c.unreadCount = 0;
+    renderMessages(c);
+  }
+}
+
+// ---- SEND ----
+function sendMessage() {
+  const input = document.getElementById('composeInput');
+  const body = input.value.trim();
+  if (!body || !activeConvoAddress) return;
+  if (!androidOnline) { showToast('⚠️ Android device is offline', 'error'); return; }
+
+  const msgId = 'pending-' + Date.now();
+  const c = conversations.find(x => x.address === activeConvoAddress);
+  if (!c) return;
+
+  c.messages.unshift({ id: msgId, body, date: Date.now(), type: 'sent', pending: true });
+  renderMessages(c);
+  renderConvoList(document.getElementById('searchInput').value);
+
+  ws.send(JSON.stringify({ type: 'send_sms', to: activeConvoAddress, body, messageId: msgId }));
+  input.value = '';
+  input.style.height = '';
+}
+
+function confirmSent(msgId) {
+  conversations.forEach(c => {
+    c.messages.forEach(m => {
+      if (m.id === msgId) { m.pending = false; }
+    });
+  });
+  const c = conversations.find(x => x.address === activeConvoAddress);
+  if (c) renderMessages(c);
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function autoResize(el) {
+  el.style.height = ''; el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// ---- SYNC ----
+function requestSync() {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'sync_request' }));
+    showToast('🔄 Sync requested');
+  }
+}
+
+// ---- NEW CONVERSATION ----
+function openNewConvo() { document.getElementById('newConvoModal').classList.add('open'); document.getElementById('newConvoPhone').focus(); }
+function closeNewConvo() { document.getElementById('newConvoModal').classList.remove('open'); }
+function startNewConvo() {
+  const phone = document.getElementById('newConvoPhone').value.trim();
+  if (!phone) return;
+  closeNewConvo();
+  // Find or create
+  let c = conversations.find(x => x.address === phone);
+  if (!c) {
+    c = { threadId: 'new-' + Date.now(), address: phone, contactName: phone, messages: [], unreadCount: 0 };
+    conversations.unshift(c);
+    renderConvoList();
+  }
+  openConversation(phone);
+}
+
+// ---- UTILS ----
+function getInitial(name) {
+  if (!name) return '?';
+  const p = name.match(/[a-zA-Z]/);
+  return p ? p[0].toUpperCase() : name[0];
+}
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function formatDate(ts) {
+  if (!ts) return 'Unknown date';
+  const d = new Date(ts);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+let toastTimer;
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+// Allow pressing Enter to connect
+document.getElementById('tokenInput').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
+document.getElementById('serverUrl').addEventListener('keydown', e => { if (e.key === 'Enter') connect(); });
+document.getElementById('newConvoPhone').addEventListener('keydown', e => { if (e.key === 'Enter') startNewConvo(); });
+</script>
+
+<!-- QR Code Modal -->
+<div class="qr-modal" id="qrModal" onclick="if(event.target===this)closeQr()">
+  <div class="qr-box">
+    <h3>Scan to Connect Android</h3>
+    <p>Open SMS Bridge on your phone<br>and tap "Scan QR Code"</p>
+    <div id="qrcode" style="min-height:256px;display:flex;align-items:center;justify-content:center"></div>
+    <button class="qr-close" onclick="closeQr()">Close</button>
+  </div>
+</div>
+<script>
+function showQr() {
+  const serverUrl = document.getElementById('serverUrl').value.trim();
+  const token = document.getElementById('tokenInput').value.trim();
+  if (!token) { showConnectError('Enter a device token first'); return; }
+
+  // Ask the server to generate the QR - it knows its own address
+  const httpBase = serverUrl
+    .replace('wss://', 'https://')
+    .replace('ws://', 'http://')
+    .replace(/\/+$/, '');
+
+  const qrSrc = httpBase + '/qr?token=' + encodeURIComponent(token);
+
+  const container = document.getElementById('qrcode');
+  container.innerHTML = '<p style="color:#64748b;font-size:13px">Loading QR code...</p>';
+  document.getElementById('qrModal').classList.add('show');
+
+  const img = document.createElement('img');
+  img.width = 256;
+  img.height = 256;
+  img.style.display = 'block';
+  img.onload = function() { container.innerHTML = ''; container.appendChild(img); };
+  img.onerror = function() {
+    container.innerHTML = '<p style="color:#ef4444;font-size:13px;padding:10px">Could not load QR.<br>Make sure server is running<br>and URL is correct.</p>';
+  };
+  img.src = qrSrc;
+}
+
+function closeQr() {
+  document.getElementById('qrModal').classList.remove('show');
+}
+</script>
+</body>
+</html>
